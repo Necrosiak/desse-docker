@@ -1,0 +1,6 @@
+# NetworkMemories — Demon's Souls Server dependencies
+# pycryptodome is the Python 3 maintained drop-in for pycrypto
+pycryptodome==3.20.0
+
+# Admin panel
+flask==3.0.3

@@ -1,0 +1,74 @@
+version: "3.9"
+
+# =============================================================================
+# NetworkMemories — Demon's Souls Server (desse-docker)
+# Usage:
+#   make init        → first-time setup
+#   make run-daemon  → start all services in background
+# =============================================================================
+
+services:
+
+  # ---------------------------------------------------------------------------
+  # DNS — resolves DS domains → SERVER_IP for PS3/RPCS3 clients
+  # ---------------------------------------------------------------------------
+  desse-dns:
+    build:
+      context: ./docker/dnsmasq
+    container_name: desse-dns
+    restart: unless-stopped
+    environment:
+      SERVER_IP: ${SERVER_IP}
+    ports:
+      - "${DNS_PORT:-53}:53/udp"
+      - "${DNS_PORT:-53}:53/tcp"
+    cap_add:
+      - NET_BIND_SERVICE
+
+  # ---------------------------------------------------------------------------
+  # DEMON'S SOULS SERVER
+  # ---------------------------------------------------------------------------
+  desse-server:
+    build:
+      context: .
+      dockerfile: docker/server/Dockerfile
+    container_name: desse-server
+    restart: unless-stopped
+    environment:
+      SERVER_IP: ${SERVER_IP}
+      DESSE_PORT: ${DESSE_PORT:-18000}
+      DESSE_BIND: ${DESSE_BIND:-0.0.0.0}
+      DATA_DIR: /app/data
+      DB_DIR: /app/db
+      ACTIVE_REGIONS: ${ACTIVE_REGIONS:-EU,US,JP}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+    ports:
+      - "${DESSE_PORT:-18000}:18000"
+    volumes:
+      - ./db:/app/db          # persistent: messages, ghosts, bloodstains
+      - ./data:/app/data:ro   # read-only seed data from original repo
+
+  # ---------------------------------------------------------------------------
+  # ADMIN PANEL — Flask web interface
+  # ---------------------------------------------------------------------------
+  desse-admin:
+    build:
+      context: .
+      dockerfile: docker/server/Dockerfile
+    container_name: desse-admin
+    restart: unless-stopped
+    command: ["python", "-u", "admin/app.py"]
+    environment:
+      SERVER_IP: ${SERVER_IP}
+      DESSE_PORT: ${DESSE_PORT:-18000}
+      DB_DIR: /app/db
+      ADMIN_HOST: ${ADMIN_HOST:-0.0.0.0}
+      ADMIN_PORT: ${ADMIN_PORT:-8080}
+      ADMIN_USER: ${ADMIN_USER:-admin}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD}
+      ADMIN_SECRET_KEY: ${ADMIN_SECRET_KEY}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+    ports:
+      - "${ADMIN_PORT:-8080}:8080"
+    volumes:
+      - ./db:/app/db
